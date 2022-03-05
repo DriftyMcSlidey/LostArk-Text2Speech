@@ -28,6 +28,9 @@ monitor_x_start = 0
 monitor_y_start = 0
 spiel_gesamt = {'top': 0, 'left': monitor_x_start - 1920, 'width': 1920, 'height': 1080}
 
+if not os.path.exists('audio'):
+    os.makedirs('audio')
+
 #wir löschen mal alte mp3s
 if os.path.isfile(mp3_1):
     os.remove(mp3_1)
