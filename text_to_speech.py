@@ -1,5 +1,5 @@
 # folgende pakete brauchen wir
-# pip3.9 install opencv-python numpy gtts playsound pytesseract mss pygame
+# pip3.9 install opencv-python numpy gtts playsound pytesseract mss pygame pyspellchecker
 from gtts import gTTS
 import pytesseract
 import cv2
@@ -8,6 +8,7 @@ from mss import mss
 import os
 import time
 from pygame import mixer
+from spellchecker import SpellChecker
 
 #default install pfad, bei der installatiion deutsch als sprachpaket installieren!
 #für windows: https://github.com/UB-Mannheim/tesseract/wiki -> tesseract-ocr-w64-setup-v5.0.1.20220118.exe
@@ -16,6 +17,7 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 #wenn due eine andere sprache eingestellt hast muss du das hier anpassen
 sprache_ausgabe = 'de'
 exit_dialog_text = "Verlassen"
+deutsch_fix = "1"
 #beispiel für englisch
 #sprache_ausgabe = 'en'
 #exit_dialog_text = "Leave"
@@ -46,6 +48,9 @@ if os.path.isfile(mp3_1):
 if os.path.isfile(mp3_2):
     os.remove(mp3_2)
 
+#sprachauswahl zur rechtschreibprüfung
+spell = SpellChecker(language='de')
+
 #screencapture aktivieren
 sct = mss()
 
@@ -53,6 +58,7 @@ sct = mss()
 dialog_detect_false = False
 string_old = ""
 string = "Willkommen zu LostArk"
+laenge_old = 0
 
 #endlos schleife beginnt
 while 1:
@@ -87,9 +93,7 @@ while 1:
         dialog_detect_string_check = str(exit_dialog_text).replace("\n", "")
         #wenn der text unserer forgabe "Verlassen" übereinstimmt, generieren wir eine mp3
         #print("erkannt: \"" + dialog_detect_string + "\"")
-        if dialog_detect_string == dialog_detect_string_check:
-            print("Dialog erkannt")
-        else:
+        if not dialog_detect_string == dialog_detect_string_check:
             continue
         #nachdem wir erkannt haben das es ein dialog ist machen wir uns ran den dialogtext auszulesen
         #bildauschnitt des textes, welcher vorgelesen wird wenn wir einen dialog detecten 1920x1080
@@ -101,20 +105,15 @@ while 1:
         bildausschnitt_text = cv2.morphologyEx(bildausschnitt_text, cv2.MORPH_OPEN, kernel)
 
         #wir geben eine Zeit aus wie lang das dauert zum benchmarken und debuggen
-        print("time: {}".format((time.time() - last_time)))
+        #print("time: {}".format((time.time() - last_time)))
 
         #wir verbessern mal die texterkennung, um fehlauswertungen durch die leichte transperanz zu verhindern
         custom_config = r'--oem 3 --psm 6'
         string = str(pytesseract.image_to_string(bildausschnitt_text, config=custom_config)).replace("\n", "")
 
-        #kleine fixes von buchstaben die falsch erkannt werden, das sind nicht alle aber die auffälligsten
-        string = string.replace("ii", "ü")
-        string = string.replace("i8 ", "weiß ")
-        string = string.replace("iB ", "weiß ")
-
         # wir zählen mal die worte, damit wie wissen wie lang die pause bei der ausgabe sein muss
         wort_anzahl = len(string.split())
-        laenge = len(string.split()) * 0.7
+        laenge = len(string.split()) * 0.8
 
         #bildausgabe zum debuggen, damit erennt ihr wenn ihr beii der auflösung oben rumspielen müsst
         #cv2.imshow("erkennung ob ein dialog offen ist", dialog_detect)
@@ -126,19 +125,58 @@ while 1:
         # wir verlgeichen den alten text mit dem neu erkannten. sind diese gleich spielen wir diese nicht nochmal ab
         set1 = set(string.split(' '))
         set2 = set(string_old.split(' '))
+        # wir speichern die alte ausgabe zum späteren vergleich
+        string_old = string
 
         #wenn wir keinen Text auslsen konnten verwefen wir das ganze
         if not string:
-            print("kein text erkannt")
+            #print("kein text erkannt")
             continue
-        #wenn sich der text zum vorhergehenden umlauf nicht geändert hat, verwerfen wir das ganze
-        #dies sorgt dafür das der text nur 1 mal vorgelesen wird
-        if set1 == set2:
-            print("keine textänderung")
-            continue
-        else:
-            print("in ",laenge,"sekunden ",wort_anzahl,"xwörter vorlesen")
-            #wir geben den Sprach-Text einmal aus
+
+        # wenn sich der text zum vorhergehenden umlauf nicht geändert hat, verwerfen wir das ganze
+        # dies sorgt dafür das der text nur 1 mal vorgelesen wird
+        wort_temp_count = 0
+        if laenge == laenge_old:
+            for i in set1:
+                for j in set2:
+                    if i == j:
+                        wort_temp_count = wort_temp_count + 1
+                        if wort_temp_count > 2:
+                            break
+                break
+            if wort_temp_count > 2:
+                continue
+        laenge_old = laenge
+
+        if not set1 == set2:
+            print(wort_anzahl,"x wörter in ",laenge,"sekunden ")
+
+            #rechtschreibprüfung
+            #for word in string.split(" "):
+            #    print("original: " + word)
+            #    spell.known(['google'])
+            #    print("korrektur: " +spell.correction(word))
+
+            # kleine fixes von buchstaben die falsch erkannt werden, das sind nicht alle aber die auffälligsten
+            if deutsch_fix:
+                string = string.replace("Driftymcslidey", "Du")
+                string = string.replace("6", "ü")
+                string = string.replace("ii", "ü")
+                string = string.replace("B ", "ß ")
+                string = string.replace("i8 ", "iß ")
+                string = string.replace("iB ", "iß ")
+                string = string.replace("aBe", "aße")
+                string = string.replace("a8e", "aße")
+                string = string.replace(" tiber", " über")
+                string = string.replace("é", "ö")
+                string = string.replace(" Damon", " Dämon")
+                string = string.replace(" tiberprüfen ", " überprüfen ")
+                string = string.replace(" erzahlen", " erzählen ")
+                string = string.replace(" ber ", " über ")
+                string = string.replace(" k6nnen ", " können ")
+                string = string.replace(" wide ", " würde ")
+
+            # wir geben den Sprach-Text einmal aus
             print(string)
 
             #unser script sperrt bei der ausgabe die aktuelle mp3 datei und wir können diese nicht löschen
@@ -146,7 +184,7 @@ while 1:
             mp3 = mp3_1
             try:
                 if os.path.isfile(mp3_1):
-                    print("lösche ", mp3_2)
+                    #print("lösche ", mp3_2)
                     if os.path.isfile(mp3_2):
                         os.remove(mp3_2)
                     mp3 = mp3_2
@@ -154,7 +192,7 @@ while 1:
                 print("kann nicht löschen: ", mp3_2)
             try:
                 if os.path.isfile(mp3_2):
-                    print("lösche :", mp3_1)
+                    #print("lösche :", mp3_1)
                     if os.path.isfile(mp3_1):
                         os.remove(mp3_1)
                     mp3 = mp3_1
@@ -163,19 +201,16 @@ while 1:
 
             #jetzt wandeln wir den erkannten text in mp3 um
             tts = gTTS(text=string, lang=sprache_ausgabe, slow=False, lang_check=True)
-            print("erstelle",mp3)
+            #print("erstelle",mp3)
             tts.save(mp3)
 
             #nochmal eine klene zeit ausgabe zum debuggen
-            print("time: {}".format((time.time() - last_time)))
-
-            #wir speichern die alte ausgabe zum späteren vergleich
-            string_old = string
+            #print("time: {}".format((time.time() - last_time)))
 
             #wir geben die erstellte mp3 aus
             mixer.init()
             if os.path.isfile(mp3):
-                print("lade ", mp3)
+                #print("lade ", mp3)
                 mixer.music.load(mp3)
                 mixer.music.play()
                 time.sleep(laenge)
