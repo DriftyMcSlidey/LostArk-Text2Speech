@@ -1,5 +1,5 @@
 # folgende pakete brauchen wir
-# pip3.9 install opencv-python numpy gtts playsound pytesseract mss pygame pyspellchecker
+# pip3.9 install opencv-python opencv-contrib-python numpy gtts playsound pytesseract mss pygame pyspellchecker
 from gtts import gTTS
 import pytesseract
 import cv2
@@ -16,10 +16,12 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 
 #wenn due eine andere sprache eingestellt hast muss du das hier anpassen
 sprache_ausgabe = 'de'
+tesseract_ausgabe = "deu"
 exit_dialog_text = "Verlassen"
-deutsch_fix = "1"
+
 #beispiel für englisch
 #sprache_ausgabe = 'en'
+#tesseract_ausgabe = "eng"
 #exit_dialog_text = "Leave"
 
 #multi monitor setups zu capturen des richtigen bild ausschnittes,
@@ -75,6 +77,7 @@ while 1:
     #wir wandeln das bild in für dne pc verständlche daten um
     image_full = np.array(image_full)
     image = cv2.cvtColor(image_full, cv2.COLOR_BGR2GRAY)
+
     if dialog_detect_false:
         continue
     else:
@@ -89,7 +92,7 @@ while 1:
 
         #wir lesen den text aus dem bild
         custom_config = r'--oem 3 --psm 6'
-        dialog_detect_string = str(pytesseract.image_to_string(dialog_detect, config=custom_config)).replace("\n", "")
+        dialog_detect_string = str(pytesseract.image_to_string(dialog_detect, config=custom_config, lang=tesseract_ausgabe)).replace("\n", "")
         dialog_detect_string_check = str(exit_dialog_text).replace("\n", "")
         #wenn der text unserer forgabe "Verlassen" übereinstimmt, generieren wir eine mp3
         #print("erkannt: \"" + dialog_detect_string + "\"")
@@ -109,18 +112,19 @@ while 1:
 
         #wir verbessern mal die texterkennung, um fehlauswertungen durch die leichte transperanz zu verhindern
         custom_config = r'--oem 3 --psm 6'
-        string = str(pytesseract.image_to_string(bildausschnitt_text, config=custom_config)).replace("\n", "")
-
+        string = str(pytesseract.image_to_string(bildausschnitt_text, config=custom_config, lang=tesseract_ausgabe)).replace("\n", "")
+        string = string.replace("...", "")
+        string = string.replace(".", " ")
         # wir zählen mal die worte, damit wie wissen wie lang die pause bei der ausgabe sein muss
         wort_anzahl = len(string.split())
         laenge = len(string.split()) * 0.8
 
         #bildausgabe zum debuggen, damit erennt ihr wenn ihr beii der auflösung oben rumspielen müsst
-        #cv2.imshow("erkennung ob ein dialog offen ist", dialog_detect)
-        #cv2.imshow("text der umgewandelt wird", bildausschnitt_text)
-        #if cv2.waitKey(25) & 0xFF == ord("q"):
-        #   cv2.destroyAllWindows()
-        #    break
+        cv2.imshow("erkennung ob ein dialog offen ist", dialog_detect)
+        cv2.imshow("text der umgewandelt wird", bildausschnitt_text)
+        if cv2.waitKey(25) & 0xFF == ord("q"):
+            cv2.destroyAllWindows()
+            break
 
         # wir verlgeichen den alten text mit dem neu erkannten. sind diese gleich spielen wir diese nicht nochmal ab
         set1 = set(string.split(' '))
@@ -148,8 +152,11 @@ while 1:
                 continue
         laenge_old = laenge
 
+        #buchstaben im string um die ausgabe länge zu ermitteln
+        buchstaben = len(list(c for c in string if c.isalpha()))
+        ausgabe_zeit = buchstaben / 7.5
         if not set1 == set2:
-            print(wort_anzahl,"x wörter in ",laenge,"sekunden ")
+            print(wort_anzahl,"x wörter in ",ausgabe_zeit,"sekunden ")
 
             #rechtschreibprüfung
             #for word in string.split(" "):
@@ -157,27 +164,12 @@ while 1:
             #    spell.known(['google'])
             #    print("korrektur: " +spell.correction(word))
 
-            # kleine fixes von buchstaben die falsch erkannt werden, das sind nicht alle aber die auffälligsten
-            if deutsch_fix:
-                string = string.replace("Driftymcslidey", "Du")
-                string = string.replace("6", "ü")
-                string = string.replace("ii", "ü")
-                string = string.replace("B ", "ß ")
-                string = string.replace("i8 ", "iß ")
-                string = string.replace("iB ", "iß ")
-                string = string.replace("aBe", "aße")
-                string = string.replace("a8e", "aße")
-                string = string.replace(" tiber", " über")
-                string = string.replace("é", "ö")
-                string = string.replace(" Damon", " Dämon")
-                string = string.replace(" tiberprüfen ", " überprüfen ")
-                string = string.replace(" erzahlen", " erzählen ")
-                string = string.replace(" ber ", " über ")
-                string = string.replace(" k6nnen ", " können ")
-                string = string.replace(" wide ", " würde ")
-
             # wir geben den Sprach-Text einmal aus
             print(string)
+
+            ##wir schreiben den text in eine datei. diese önnen wir verwenden um tesseract zu traiinieren
+            datei = open('log.txt', 'a')
+            datei.write(string)
 
             #unser script sperrt bei der ausgabe die aktuelle mp3 datei und wir können diese nicht löschen
             # daher zwitschen wir zwischen 2 dateien und löschen immer die die wir können
@@ -213,8 +205,9 @@ while 1:
                 #print("lade ", mp3)
                 mixer.music.load(mp3)
                 mixer.music.play()
-                time.sleep(laenge)
+                time.sleep(ausgabe_zeit)
                 mixer.music.stop()
+                print("ausgabe beendet")
 
 #das wars mehr braucht man theoretisch nicht
 #da einige sätze vertont sind, könnte man noch eine erkennung des mauszeigers einbauen
