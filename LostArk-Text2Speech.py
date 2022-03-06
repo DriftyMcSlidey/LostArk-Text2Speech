@@ -1,5 +1,5 @@
 # folgende pakete brauchen wir
-# pip3.9 install opencv-python opencv-contrib-python numpy gtts playsound pytesseract mss pygame
+# pip3.9 install opencv-python opencv-contrib-python numpy gtts pytesseract mss pygame
 from gtts import gTTS
 import pytesseract
 import cv2
@@ -8,11 +8,13 @@ from mss import mss
 import os
 import time
 from pygame import mixer
-from spellchecker import SpellChecker
 
 #default install pfad, bei der installatiion deutsch als sprachpaket installieren!
 #für windows: https://github.com/UB-Mannheim/tesseract/wiki -> tesseract-ocr-w64-setup-v5.0.1.20220118.exe
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+#lautsträke der ausgabe 0 (0%) - 1 (100%)
+lautstaerke = 0.7
 
 #wenn due eine andere sprache eingestellt hast muss du das hier anpassen
 sprache_ausgabe = 'de'
@@ -20,9 +22,9 @@ tesseract_ausgabe = "deu"
 exit_dialog_text = "Verlassen"
 
 #beispiel für englisch
-#sprache_ausgabe = 'en'
-#tesseract_ausgabe = "eng"
-#exit_dialog_text = "Leave"
+sprache_ausgabe_eng = 'en'
+tesseract_ausgabe_eng = "eng"
+exit_dialog_text_eng = "Leave"
 
 #multi monitor setups zu capturen des richtigen bild ausschnittes,
 #single monitor 1920x1080 primär monitor
@@ -50,17 +52,17 @@ if os.path.isfile(mp3_1):
 if os.path.isfile(mp3_2):
     os.remove(mp3_2)
 
-#sprachauswahl zur rechtschreibprüfung
-spell = SpellChecker(language='de')
-
 #screencapture aktivieren
 sct = mss()
 
 #das hier nicht ändern
 dialog_detect_false = False
 string_old = ""
-string = "Willkommen zu LostArk"
+string = "Willkommen zu LostArk2Speech"
 laenge_old = 0
+debug = ""
+
+print(string + " " + sprache_ausgabe + " " + tesseract_ausgabe)
 
 #endlos schleife beginnt
 while 1:
@@ -83,7 +85,8 @@ while 1:
     if dialog_detect_false:
         continue
     else:
-        time.sleep(1)
+        if not string_old:
+            time.sleep(1)
         #bildauschnitt zum erkennen, ob das spiel sich in einem dialog befindet 1920x1080
         #hier schneiden wir uns das "Verlassen" nutton aus den diealogen aus
         y = 25; x = 1320; h = 40; w = 120
@@ -99,8 +102,14 @@ while 1:
         dialog_detect_string_check = str(exit_dialog_text).replace("\n", "")
         #wenn der text unserer forgabe "Verlassen" übereinstimmt, generieren wir eine mp3
         #print("erkannt: \"" + dialog_detect_string + "\"")
-        if not dialog_detect_string == dialog_detect_string_check:
+        if not dialog_detect_string == dialog_detect_string_check and not dialog_detect_string == exit_dialog_text_eng:
             continue
+        #wenn englisch erkannt wird switchen wir die text erkennung zu englisch
+        if dialog_detect_string == exit_dialog_text_eng:
+            sprache_ausgabe = 'en'
+            tesseract_ausgabe = "eng"
+            exit_dialog_text = "Leave"
+
         #nachdem wir erkannt haben das es ein dialog ist machen wir uns ran den dialogtext auszulesen
         #bildauschnitt des textes, welcher vorgelesen wird wenn wir einen dialog detecten 1920x1080
         y = 0; x = 0; h = 150; w = 1145
@@ -123,11 +132,12 @@ while 1:
         laenge = len(string.split()) * 0.8
 
         #bildausgabe zum debuggen, damit erennt ihr wenn ihr beii der auflösung oben rumspielen müsst
-        cv2.imshow("erkennung ob ein dialog offen ist", dialog_detect)
-        cv2.imshow("text der umgewandelt wird", bildausschnitt_text)
-        if cv2.waitKey(25) & 0xFF == ord("q"):
-            cv2.destroyAllWindows()
-            break
+        if debug:
+            cv2.imshow("erkennung ob ein dialog offen ist", dialog_detect)
+            cv2.imshow("text der umgewandelt wird", bildausschnitt_text)
+            if cv2.waitKey(25) & 0xFF == ord("q"):
+                cv2.destroyAllWindows()
+                break
 
         # wir verlgeichen den alten text mit dem neu erkannten. sind diese gleich spielen wir diese nicht nochmal ab
         set1 = set(string.split(' '))
@@ -207,11 +217,13 @@ while 1:
             if os.path.isfile(mp3):
                 #print("lade ", mp3)
                 mixer.music.load(mp3)
+                mixer.music.set_volume(lautstaerke)
                 mixer.music.play()
                 time.sleep(ausgabe_zeit)
                 mixer.music.stop()
-                print("ausgabe beendet")
+                if debug:
+                    print("ausgabe beendet")
 
 #das wars mehr braucht man theoretisch nicht
 #da einige sätze vertont sind, könnte man noch eine erkennung des mauszeigers einbauen
-#zur sprach ausgabe muss man dann über das "Verlassen", erst dann beginnt die sprachausgabe.
+#zur sprachausgabe muss man dann über das "Verlassen", erst dann beginnt die sprachausgabe.
