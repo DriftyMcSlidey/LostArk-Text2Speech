@@ -1,5 +1,5 @@
 # folgende pakete brauchen wir
-# pip3.9 install opencv-python opencv-contrib-python numpy gtts playsound pytesseract mss pygame pyspellchecker
+# pip3.9 install opencv-python opencv-contrib-python numpy gtts playsound pytesseract mss pygame
 from gtts import gTTS
 import pytesseract
 import cv2
@@ -37,7 +37,7 @@ monitor_y_start = 0
 
 #wir capturen aus performance gründen nur den unter unteren teil des bildes mit einer höhe von 100 pixel
 #spiel_gesamt = {'top': 0, 'left': monitor_x_start - 1920, 'width': 1920, 'height': 1080}
-spiel_gesamt = {'top': 985, 'left': monitor_x_start + 450, 'width': 1920, 'height': 100}
+spiel_gesamt = {'top': 985, 'left': monitor_x_start + 440, 'width': 1920, 'height': 100}
 
 #audio dateien und ordner
 mp3_1 = "audio/1.mp3"
@@ -77,13 +77,16 @@ while 1:
     #wir wandeln das bild in für dne pc verständlche daten um
     image_full = np.array(image_full)
     image = cv2.cvtColor(image_full, cv2.COLOR_BGR2GRAY)
-
+    figure_size = 3
+    image = cv2.GaussianBlur(image, (figure_size, figure_size), 0)
+    image = cv2.bitwise_not(image)
     if dialog_detect_false:
         continue
     else:
+        time.sleep(1)
         #bildauschnitt zum erkennen, ob das spiel sich in einem dialog befindet 1920x1080
         #hier schneiden wir uns das "Verlassen" nutton aus den diealogen aus
-        y = 20; x = 1300; h = 40; w = 130
+        y = 25; x = 1320; h = 40; w = 120
         dialog_detect = image[y:y + h, x:x + w]
 
         #wir wandeln das bild ,um einen guten kotrast für die spracherkennung zu bekommen
@@ -112,9 +115,9 @@ while 1:
 
         #wir verbessern mal die texterkennung, um fehlauswertungen durch die leichte transperanz zu verhindern
         custom_config = r'--oem 3 --psm 6'
-        string = str(pytesseract.image_to_string(bildausschnitt_text, config=custom_config, lang=tesseract_ausgabe)).replace("\n", "")
+        string = str(pytesseract.image_to_string(bildausschnitt_text, config=custom_config, lang=tesseract_ausgabe)).replace("\n", " ")
         string = string.replace("...", "")
-        string = string.replace(".", " ")
+        string = string.replace(".", ". ")
         # wir zählen mal die worte, damit wie wissen wie lang die pause bei der ausgabe sein muss
         wort_anzahl = len(string.split())
         laenge = len(string.split()) * 0.8
@@ -168,8 +171,8 @@ while 1:
             print(string)
 
             ##wir schreiben den text in eine datei. diese önnen wir verwenden um tesseract zu traiinieren
-            datei = open('log.txt', 'a')
-            datei.write(string)
+            #datei = open('log.txt', 'a')
+            #datei.write(string)
 
             #unser script sperrt bei der ausgabe die aktuelle mp3 datei und wir können diese nicht löschen
             # daher zwitschen wir zwischen 2 dateien und löschen immer die die wir können
