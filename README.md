@@ -1,7 +1,10 @@
 # LostArk-Text2Speech
 Script um die Dialoge in LostArk vorzulesen, welche nicht vertont wurden.
 
-benötigte python module:
+Video: https://youtu.be/E3Yn_T0XA1I
+
+Benötigte pythonModule:
+
 pip3.9 install opencv-python opencv-contrib-python numpy gtts playsound pytesseract mss pygame
 
 tesseract-ocr install, bei der installatiion deutsch als sprachpaket installieren!:
